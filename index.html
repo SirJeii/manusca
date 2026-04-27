@@ -42,7 +42,7 @@
             <p class="mt-2 text-blue-200 text-sm sm:text-base">Upload your final thesis manuscript in PDF and DOCX formats.</p>
         </div>
 
-        <!-- Form Form -->
+        <!-- Form -->
         <form id="submissionForm" class="p-6 sm:p-8 space-y-6">
             
             <!-- Section 1: Academic Details -->
@@ -209,6 +209,20 @@
             }
         }
 
+        // === Helper: Rename Uploaded File ===
+        function renameUploadedFile(file, newBaseName) {
+            // Get original file extension
+            const extension = file.name.split('.').pop();
+            // Create the new name using the base and original extension
+            const newName = `${newBaseName}.${extension}`;
+            
+            // Return a new File object with the exact contents but a new name
+            return new File([file], newName, {
+                type: file.type,
+                lastModified: file.lastModified,
+            });
+        }
+
         // === Telegram API Integration ===
 
         // Helper to send a single document to Telegram
@@ -266,21 +280,26 @@
                 return;
             }
 
-            // 3. Format Caption exactly as requested
-            // Format: <Adviser's Surname - Section - Students' surnames - Thesis Title>
-            // Example: Dr. F.Yulo - IT601A- Dela Cruz, Gapasin, Del Rosa - Web-based POS for Matute Shop
+            // 3. Prepare Formatted Strings
+            // Formatting Caption
             const captionStr = `${adviser} - ${section} - ${member1}, ${member2}, ${member3} - ${thesisTitle}`;
+
+            // Formatting File Names: Title - Section - Surname1, surname2, surname 3
+            const fileNamingFormat = `${thesisTitle} - ${section} - ${member1}, ${member2}, ${member3}`;
+
+            // Rename files using the helper function
+            const renamedPdf = renameUploadedFile(pdfFile, fileNamingFormat);
+            const renamedDocx = renameUploadedFile(docxFile, fileNamingFormat);
 
             // 4. Send files sequentially
             try {
                 setLoading(true);
                 
                 // Send PDF first with the caption
-                await sendDocumentToTelegram(pdfFile, captionStr, botToken, chatId);
+                await sendDocumentToTelegram(renamedPdf, captionStr, botToken, chatId);
                 
-                // Send DOCX immediately after (we'll attach the caption to this one too so they stay linked, 
-                // or you can pass null if you only want the caption once. I am passing it twice for clarity in chat)
-                await sendDocumentToTelegram(docxFile, captionStr + " (DOCX version)", botToken, chatId);
+                // Send DOCX immediately after (we'll attach the caption to this one too so they stay linked)
+                await sendDocumentToTelegram(renamedDocx, captionStr + " (DOCX version)", botToken, chatId);
 
                 // Success
                 showMessage("Success! Manuscript was submitted.", "success");
